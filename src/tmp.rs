@@ -37,6 +37,5 @@ impl TmpDir {
             }
             try += 1;
         }
-        
     }
 }
