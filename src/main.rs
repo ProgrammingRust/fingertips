@@ -1,3 +1,18 @@
+/// `fingertips` creates an inverted index for a set of text files.
+///
+/// Most of the actual work is done by the modules `index`, `read`, `write`,
+/// and `merge`.  In this file, `main.rs`, we put the pieces together in two
+/// different ways.
+///
+/// *   `run_single_threaded` simply does everything in one thread, in
+///     the most straightforward possible way.
+///
+/// *   Then, we break the work into a five-stage pipeline so that we can run
+///     it on multiple CPUs. `run_pipeline` puts the five stages together.
+///
+/// The `main` function at the end handles command-line arguments. It calls one
+/// of the two functions above to do the work.
+
 extern crate argparse;
 extern crate byteorder;
 
@@ -21,6 +36,57 @@ use write::write_index_to_tmp_file;
 use merge::FileMerge;
 use tmp::TmpDir;
 
+/// Create an inverted index for the given list of `documents`,
+/// storing it in the specified `output_dir`.
+fn run_single_threaded(documents: Vec<PathBuf>, output_dir: PathBuf)
+    -> io::Result<()>
+{
+    // If all the documents fit comfortably in memory, we'll create the whole
+    // index in memory.
+    let mut accumulated_index = InMemoryIndex::new();
+
+    // If not, then as memory fills up, we'll write largeish temporary index
+    // files to disk, saving the temporary filenames in `merge` so that later we
+    // can merge them all into a single huge file.
+    let mut merge = FileMerge::new(&output_dir);
+
+    // A tool for generating temporary filenames.
+    let mut tmp_dir = TmpDir::new(&output_dir);
+
+    // For each document in the set...
+    for (doc_id, filename) in documents.into_iter().enumerate() {
+        // ...load it into memory...
+        let mut f = File::open(filename)?;
+        let mut text = String::new();
+        f.read_to_string(&mut text)?;
+
+        // ...and add its contents to the in-memory `accumulated_index`.
+        let index = InMemoryIndex::from_single_document(doc_id, text);
+        accumulated_index.merge(index);
+        if accumulated_index.is_large() {
+            // To avoid running out of memory, dump `accumulated_index` to disk.
+            let file = write_index_to_tmp_file(accumulated_index, &mut tmp_dir)?;
+            merge.add_file(file)?;
+            accumulated_index = InMemoryIndex::new();
+        }
+    }
+
+    // Done reading documents! Save the last data set to disk, then merge the
+    // temporary index files if there are more than one.
+    if !accumulated_index.is_empty() {
+        let file = write_index_to_tmp_file(accumulated_index, &mut tmp_dir)?;
+        merge.add_file(file)?;
+    }
+    merge.finish()
+}
+
+/// Start a thread that loads documents from the filesystem into memory.
+///
+/// `documents` is a list of filenames to load.
+///
+/// This returns a pair of values: a receiver that receives the documents, as
+/// Strings; and a `JoinHandle` that can be used to wait for this thread to
+/// exit and to get the `io::Error` value if anything goes wrong.
 fn start_file_reader_thread(documents: Vec<PathBuf>)
     -> (Receiver<String>, JoinHandle<io::Result<()>>)
 {
@@ -42,6 +108,15 @@ fn start_file_reader_thread(documents: Vec<PathBuf>)
     (receiver, handle)
 }
 
+/// Start a thread that tokenizes each text and converts it into an in-memory
+/// index. (We assume that every document fits comfortably in memory.)
+///
+/// `texts` is the stream of documents from the file reader thread.
+///
+/// This assigns each document a number. It returns a pair of values: a
+/// receiver, the sequence of in-memory indexes; and a `JoinHandle` that can be
+/// used to wait for this thread to exit. This stage of the pipeline is
+/// infallible (it performs no I/O, so there are no possible errors).
 fn start_file_indexing_thread(texts: Receiver<String>)
     -> (Receiver<InMemoryIndex>, JoinHandle<()>)
 {
@@ -113,6 +188,12 @@ fn merge_index_files(files: Receiver<PathBuf>, output_dir: &Path)
     merge.finish()
 }
 
+/// Create an inverted index for the given list of `documents`,
+/// storing it in the specified `output_dir`.
+///
+/// On success this does exactly the same thing as `run_single_threaded`, but
+/// faster since it uses multiple CPUs and keeps them busy while I/O is
+/// happening.
 fn run_pipeline(documents: Vec<PathBuf>, output_dir: PathBuf)
     -> io::Result<()>
 {
@@ -135,33 +216,6 @@ fn run_pipeline(documents: Vec<PathBuf>, output_dir: PathBuf)
     r1?;
     r4?;
     result
-}
-
-fn run_single_threaded(documents: Vec<PathBuf>, output_dir: PathBuf)
-    -> io::Result<()>
-{
-    let mut accumulated_index = InMemoryIndex::new();
-    let mut merge = FileMerge::new(&output_dir);
-    let mut tmp_dir = TmpDir::new(&output_dir);
-    for (doc_id, filename) in documents.into_iter().enumerate() {
-        let mut f = File::open(filename)?;
-        let mut text = String::new();
-        f.read_to_string(&mut text)?;
-
-        let index = InMemoryIndex::from_single_document(doc_id, text);
-        accumulated_index.merge(index);
-        if accumulated_index.is_large() {
-            let file = write_index_to_tmp_file(accumulated_index, &mut tmp_dir)?;
-            merge.add_file(file)?;
-            accumulated_index = InMemoryIndex::new();
-        }
-    }
-
-    if !accumulated_index.is_empty() {
-        let file = write_index_to_tmp_file(accumulated_index, &mut tmp_dir)?;
-        merge.add_file(file)?;
-    }
-    merge.finish()
 }
 
 fn expand_filename_arguments(args: Vec<String>) -> io::Result<Vec<PathBuf>> {
@@ -192,8 +246,8 @@ fn run(filenames: Vec<String>, single_threaded: bool) -> io::Result<()> {
         run_pipeline(documents, output_dir)
     }
 }
-    
-fn main() {        
+
+fn main() {
     let mut single_threaded = false;
     let mut filenames = vec![];
 
@@ -210,7 +264,7 @@ fn main() {
                            under the directory are indexed.");
         ap.parse_args_or_exit();
     }
-    
+
     match run(filenames, single_threaded) {
         Ok(()) => {}
         Err(err) => println!("error: {:?}", err.description())

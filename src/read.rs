@@ -1,3 +1,6 @@
+//! Reading index files linearly from disk, a capability needed for merging
+//! index files.
+
 use std::fs::{self, File};
 use std::io::prelude::*;
 use std::io::{self, BufReader, SeekFrom};
