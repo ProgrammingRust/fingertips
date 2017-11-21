@@ -6,9 +6,23 @@ use index::InMemoryIndex;
 use tmp::TmpDir;
 use byteorder::{LittleEndian, WriteBytesExt};
 
+/// Writer for saving an index to a binary file.
+///
+/// The first 8 bytes of the index file contain the offset of the table of
+/// contents, in bytes. Then come the main entries, all stored back-to-back
+/// with no particular metadata.
+///
+
+/// An index file has two parts. The main part of the file is a sequence of
+/// entries, stored back-to-back; the
 pub struct IndexFileWriter {
+    /// The number of bytes written so far.
     offset: u64,
+
+    /// The open file we're writing to.
     writer: BufWriter<File>,
+
+    /// The table of contents for this file.
     contents_buf: Vec<u8>
 }
 
@@ -38,6 +52,7 @@ impl IndexFileWriter {
         self.contents_buf.extend(bytes);
     }
 
+    /// Finish writing the index file and close it.
     pub fn finish(mut self) -> io::Result<()> {
         let contents_start = self.offset;
         self.writer.write_all(&self.contents_buf)?;
