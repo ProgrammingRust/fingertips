@@ -134,6 +134,19 @@ fn start_file_indexing_thread(texts: Receiver<String>)
     (receiver, handle)
 }
 
+/// Start a thread that merges in-memory indexes.
+///
+/// `file_indexes` receives a stream of indexes from the file indexing thread.
+/// These indexes typically vary a lot in size, since the input documents will
+/// typically be all different sizes.
+///
+/// The thread created by this function merges those indexes into "large"
+/// indexes and passes these large indexes on to a new channel.
+///
+/// This returns a pair: a receiver, the sequence of large indexes produced by
+/// merging the input indexes; and a `JoinHandle` that can be used to wait for
+/// this thread to exit. This stage of the pipeline is infallible (it performs
+/// no I/O).
 fn start_in_memory_merge_thread(file_indexes: Receiver<InMemoryIndex>)
     -> (Receiver<InMemoryIndex>, JoinHandle<()>)
 {
@@ -158,6 +171,14 @@ fn start_in_memory_merge_thread(file_indexes: Receiver<InMemoryIndex>)
     (receiver, handle)
 }
 
+/// Start a thread that saves large indexes to temporary files.
+///
+/// This thread generates a meaningless unique filename for each index in
+/// `big_indexes`, saves the data, and passes the filename on to a new channel.
+///
+/// This returns a pair: a receiver that receives the filenames; and a
+/// `JoinHandle` that can be used to wait for this thread to exit and receive
+/// any I/O errors it encountered.
 fn start_index_writer_thread(big_indexes: Receiver<InMemoryIndex>,
                              output_dir: &Path)
     -> (Receiver<PathBuf>, JoinHandle<io::Result<()>>)
@@ -178,6 +199,8 @@ fn start_index_writer_thread(big_indexes: Receiver<InMemoryIndex>,
     (receiver, handle)
 }
 
+/// Given a sequence of filenames of index data files, merge all the files
+/// into a single index data file.
 fn merge_index_files(files: Receiver<PathBuf>, output_dir: &Path)
     -> io::Result<()>
 {
@@ -218,6 +241,13 @@ fn run_pipeline(documents: Vec<PathBuf>, output_dir: PathBuf)
     result
 }
 
+/// Given some paths, generate the complete list of text files to index. We check
+/// on disk whether the path is the name of a file or a directory; for
+/// directories, all .txt files immediately under the directory are indexed.
+/// Relative paths are fine.
+///
+/// It's an error if any of the `args` is not a valid path to an existing file
+/// or directory.
 fn expand_filename_arguments(args: Vec<String>) -> io::Result<Vec<PathBuf>> {
     let mut filenames = vec![];
     for arg in args {
@@ -236,6 +266,7 @@ fn expand_filename_arguments(args: Vec<String>) -> io::Result<Vec<PathBuf>> {
     Ok(filenames)
 }
 
+/// Generate an index for a bunch of text files.
 fn run(filenames: Vec<String>, single_threaded: bool) -> io::Result<()> {
     let output_dir = PathBuf::from(".");
     let documents = expand_filename_arguments(filenames)?;
