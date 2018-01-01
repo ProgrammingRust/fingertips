@@ -64,7 +64,7 @@ impl InMemoryIndex {
         let text = text.to_lowercase();
         let tokens = tokenize(&text);
         for (i, token) in tokens.iter().enumerate() {
-            let mut hits =
+            let hits =
                 index.map
                 .entry(token.to_string())
                 .or_insert_with(|| {
