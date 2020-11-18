@@ -17,7 +17,7 @@ impl TmpDir {
     }
 
     pub fn create(&mut self) -> io::Result<(PathBuf, BufWriter<File>)> {
-        let mut try = 1;
+        let mut r#try = 1;
         loop {
             let filename = self.dir.join(PathBuf::from(format!("tmp{:08x}.dat", self.n)));
             self.n += 1;
@@ -29,13 +29,13 @@ impl TmpDir {
                 Ok(f) =>
                     return Ok((filename, BufWriter::new(f))),
                 Err(exc) =>
-                    if try < 999 && exc.kind() == io::ErrorKind::AlreadyExists {
+                    if r#try < 999 && exc.kind() == io::ErrorKind::AlreadyExists {
                         // keep going
                     } else {
                         return Err(exc);
                     }
             }
-            try += 1;
+            r#try += 1;
         }
     }
 }
