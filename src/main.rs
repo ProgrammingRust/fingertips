@@ -13,9 +13,6 @@
 /// The `main` function at the end handles command-line arguments. It calls one
 /// of the two functions above to do the work.
 
-extern crate argparse;
-extern crate byteorder;
-
 mod index;
 mod read;
 mod write;
