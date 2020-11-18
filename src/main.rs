@@ -30,10 +30,10 @@ use std::sync::mpsc::{channel, Receiver};
 use std::thread::{spawn, JoinHandle};
 use argparse::{ArgumentParser, StoreTrue, Collect};
 
-use index::InMemoryIndex;
-use write::write_index_to_tmp_file;
-use merge::FileMerge;
-use tmp::TmpDir;
+use crate::index::InMemoryIndex;
+use crate::write::write_index_to_tmp_file;
+use crate::merge::FileMerge;
+use crate::tmp::TmpDir;
 
 /// Create an inverted index for the given list of `documents`,
 /// storing it in the specified `output_dir`.

@@ -6,7 +6,7 @@ use std::io::prelude::*;
 use std::io::{self, BufReader, SeekFrom};
 use std::path::Path;
 use byteorder::{LittleEndian, ReadBytesExt};
-use write::IndexFileWriter;
+use crate::write::IndexFileWriter;
 
 /// A `IndexFileReader` does a single linear pass over an index file from
 /// beginning to end. Needless to say, this is not how an index is normally

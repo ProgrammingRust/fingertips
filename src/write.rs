@@ -2,8 +2,8 @@ use std::fs::File;
 use std::io::{self, BufWriter, SeekFrom};
 use std::io::prelude::*;
 use std::path::PathBuf;
-use index::InMemoryIndex;
-use tmp::TmpDir;
+use crate::index::InMemoryIndex;
+use crate::tmp::TmpDir;
 use byteorder::{LittleEndian, WriteBytesExt};
 
 /// Writer for saving an index to a binary file.
