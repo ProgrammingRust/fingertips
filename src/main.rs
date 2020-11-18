@@ -22,7 +22,6 @@ mod write;
 mod merge;
 mod tmp;
 
-use std::error::Error;
 use std::fs::File;
 use std::io;
 use std::io::prelude::*;
@@ -298,6 +297,6 @@ fn main() {
 
     match run(filenames, single_threaded) {
         Ok(()) => {}
-        Err(err) => println!("error: {:?}", err.description())
+        Err(err) => println!("error: {}", err)
     }
 }
