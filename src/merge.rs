@@ -3,9 +3,9 @@ use std::io::{self, BufWriter};
 use std::mem;
 use std::path::{Path, PathBuf};
 
-use tmp::TmpDir;
-use read::IndexFileReader;
-use write::IndexFileWriter;
+use crate::tmp::TmpDir;
+use crate::read::IndexFileReader;
+use crate::write::IndexFileWriter;
 
 pub struct FileMerge {
     output_dir: PathBuf,

@@ -13,16 +13,12 @@
 /// The `main` function at the end handles command-line arguments. It calls one
 /// of the two functions above to do the work.
 
-extern crate argparse;
-extern crate byteorder;
-
 mod index;
 mod read;
 mod write;
 mod merge;
 mod tmp;
 
-use std::error::Error;
 use std::fs::File;
 use std::io;
 use std::io::prelude::*;
@@ -31,10 +27,10 @@ use std::sync::mpsc::{channel, Receiver};
 use std::thread::{spawn, JoinHandle};
 use argparse::{ArgumentParser, StoreTrue, Collect};
 
-use index::InMemoryIndex;
-use write::write_index_to_tmp_file;
-use merge::FileMerge;
-use tmp::TmpDir;
+use crate::index::InMemoryIndex;
+use crate::write::write_index_to_tmp_file;
+use crate::merge::FileMerge;
+use crate::tmp::TmpDir;
 
 /// Create an inverted index for the given list of `documents`,
 /// storing it in the specified `output_dir`.
@@ -298,6 +294,6 @@ fn main() {
 
     match run(filenames, single_threaded) {
         Ok(()) => {}
-        Err(err) => println!("error: {:?}", err.description())
+        Err(err) => println!("error: {}", err)
     }
 }
