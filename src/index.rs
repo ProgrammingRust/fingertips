@@ -98,6 +98,7 @@ impl InMemoryIndex {
     }
 
     /// True if this index contains no data.
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.word_count == 0
     }
