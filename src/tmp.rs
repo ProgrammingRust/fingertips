@@ -9,8 +9,8 @@ pub struct TmpDir {
 }
 
 impl TmpDir {
-    pub fn new<P: AsRef<Path>>(dir: P) -> TmpDir {
-        TmpDir {
+    pub fn new<P: AsRef<Path>>(dir: P) -> Self {
+        Self {
             dir: dir.as_ref().to_owned(),
             n: 1
         }
