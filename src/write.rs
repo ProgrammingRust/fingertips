@@ -15,6 +15,7 @@ use std::path::PathBuf;
 
 /// An index file has two parts. The main part of the file is a sequence of
 /// entries, stored back-to-back; the
+#[derive(Debug)]
 pub struct IndexFileWriter {
     /// The number of bytes written so far.
     offset: u64,

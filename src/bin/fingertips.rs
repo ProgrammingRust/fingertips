@@ -32,8 +32,8 @@ fn main() {
             "filenames",
             Collect,
             "Names of files/directories to index. \
-                           For directories, all .txt files immediately \
-                           under the directory are indexed.",
+                For directories, all .txt files immediately \
+                under the directory are indexed.",
         );
         ap.parse_args_or_exit();
     }

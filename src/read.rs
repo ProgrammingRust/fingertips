@@ -38,6 +38,7 @@ pub struct IndexFileReader {
 /// Each entry in the table of contents is small. It consists of a string, the
 /// `term`; summary information about that term, as used in the corpus (`df`);
 /// and a pointer to bulkier data that tells more (`offset` and `nbytes`).
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Entry {
     /// The term is a word that appears in one or more documents in the corpus.
     /// The index file contains information about the documents that use this

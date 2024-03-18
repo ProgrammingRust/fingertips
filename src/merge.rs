@@ -1,22 +1,39 @@
-use std::fs::{self, File};
-use std::io::{self, BufWriter};
-use std::mem;
 use std::path::{Path, PathBuf};
+use std::{fmt, mem};
+use std::{
+    fmt::Debug,
+    fs::{self, File},
+};
+use std::{
+    fmt::Formatter,
+    io::{self, BufWriter},
+};
 
 use crate::read::IndexFileReader;
 use crate::tmp::TmpDir;
 use crate::write::IndexFileWriter;
 
+pub(crate) mod constants {
+    // How many files to merge at a time, at most.
+    pub const NSTREAMS: usize = 8;
+    pub const MERGED_FILENAME: &str = "index.dat";
+}
+
+#[derive(Clone)]
 pub struct FileMerge {
     output_dir: PathBuf,
     tmp_dir: TmpDir,
     stacks: Vec<Vec<PathBuf>>,
 }
 
-// How many files to merge at a time, at most.
-const NSTREAMS: usize = 8;
-
-const MERGED_FILENAME: &str = "index.dat";
+impl Debug for FileMerge {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FileMerge")
+            .field("output_dir", &self.output_dir)
+            .field("stacks", &self.stacks)
+            .finish()
+    }
+}
 
 impl FileMerge {
     pub fn new(output_dir: &Path) -> Self {
@@ -34,7 +51,7 @@ impl FileMerge {
                 self.stacks.push(vec![]);
             }
             self.stacks[level].push(file);
-            if self.stacks[level].len() < NSTREAMS {
+            if self.stacks[level].len() < constants::NSTREAMS {
                 break;
             }
             let (filename, out) = self.tmp_dir.create()?;
@@ -48,11 +65,11 @@ impl FileMerge {
     }
 
     pub fn finish(mut self) -> io::Result<()> {
-        let mut tmp = Vec::with_capacity(NSTREAMS);
+        let mut tmp = Vec::with_capacity(constants::NSTREAMS);
         for stack in self.stacks {
             for file in stack.into_iter().rev() {
                 tmp.push(file);
-                if tmp.len() == NSTREAMS {
+                if tmp.len() == constants::NSTREAMS {
                     merge_reversed(&mut tmp, &mut self.tmp_dir)?;
                 }
             }
@@ -63,7 +80,9 @@ impl FileMerge {
         }
         assert!(tmp.len() <= 1);
         match tmp.pop() {
-            Some(last_file) => fs::rename(last_file, self.output_dir.join(MERGED_FILENAME)),
+            Some(last_file) => {
+                fs::rename(last_file, self.output_dir.join(constants::MERGED_FILENAME))
+            }
             None => Err(io::Error::new(
                 io::ErrorKind::Other,
                 "no documents were parsed or none contained any words",
@@ -122,7 +141,7 @@ fn merge_streams(files: Vec<PathBuf>, out: BufWriter<File>) -> io::Result<()> {
 fn merge_reversed(filenames: &mut Vec<PathBuf>, tmp_dir: &mut TmpDir) -> io::Result<()> {
     filenames.reverse();
     let (merged_filename, out) = tmp_dir.create()?;
-    let mut to_merge = Vec::with_capacity(NSTREAMS);
+    let mut to_merge = Vec::with_capacity(constants::NSTREAMS);
     mem::swap(filenames, &mut to_merge);
     merge_streams(to_merge, out)?;
     filenames.push(merged_filename);
