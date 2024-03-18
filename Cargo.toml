@@ -6,4 +6,4 @@ edition = "2018"
 
 [dependencies]
 argparse = "0.2.1"
-byteorder = "0.5.3"
+byteorder = "1.5.0"
