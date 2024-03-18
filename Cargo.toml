@@ -7,6 +7,8 @@ edition = "2021"
 [dependencies]
 argparse = "0.2.1"
 byteorder = "1.5.0"
+displaydoc = "0.2.4"
+thiserror = "1.0.58"
 
 [lints.rust]
 unsafe_code = "forbid"
@@ -20,3 +22,5 @@ dead_code = "warn"
 
 [lints.clippy]
 all = "warn"
+unwrap_used = "warn"
+expect_used = "warn"

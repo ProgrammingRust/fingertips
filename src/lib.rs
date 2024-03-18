@@ -13,6 +13,7 @@
 //! The `main` function at the end handles command-line arguments. It calls one
 //! of the two functions above to do the work.
 
+mod error;
 mod index;
 mod merge;
 mod read;
@@ -26,14 +27,14 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc::{channel, Receiver};
 use std::thread::{spawn, JoinHandle};
 
-use crate::index::InMemoryIndex;
-use crate::merge::FileMerge;
 use crate::tmp::TmpDir;
 use crate::write::write_index_to_tmp_file;
+use crate::{error::FingertipsErrorKind, merge::FileMerge};
+use crate::{error::FingertipsResult, index::InMemoryIndex};
 
 /// Create an inverted index for the given list of `documents`,
 /// storing it in the specified `output_dir`.
-fn run_single_threaded(documents: Vec<PathBuf>, output_dir: PathBuf) -> io::Result<()> {
+fn run_single_threaded(documents: Vec<PathBuf>, output_dir: PathBuf) -> FingertipsResult<()> {
     // If all the documents fit comfortably in memory, we'll create the whole
     // index in memory.
     let mut accumulated_index = InMemoryIndex::new();
@@ -49,16 +50,19 @@ fn run_single_threaded(documents: Vec<PathBuf>, output_dir: PathBuf) -> io::Resu
     // For each document in the set...
     for (doc_id, filename) in documents.into_iter().enumerate() {
         // ...load it into memory...
-        let mut f = File::open(filename)?;
+        let mut f = File::open(filename).map_err(FingertipsErrorKind::Io)?;
         let mut text = String::new();
-        _ = f.read_to_string(&mut text)?;
+        _ = f
+            .read_to_string(&mut text)
+            .map_err(FingertipsErrorKind::Io)?;
 
         // ...and add its contents to the in-memory `accumulated_index`.
-        let index = InMemoryIndex::from_single_document(doc_id, text);
+        let index = InMemoryIndex::from_single_document(doc_id, text)?;
         accumulated_index.merge(index);
         if accumulated_index.is_large() {
             // To avoid running out of memory, dump `accumulated_index` to disk.
-            let file = write_index_to_tmp_file(accumulated_index, &mut tmp_dir)?;
+            let file = write_index_to_tmp_file(accumulated_index, &mut tmp_dir)
+                .map_err(FingertipsErrorKind::Io)?;
             merge.add_file(file)?;
             accumulated_index = InMemoryIndex::new();
         }
@@ -67,10 +71,13 @@ fn run_single_threaded(documents: Vec<PathBuf>, output_dir: PathBuf) -> io::Resu
     // Done reading documents! Save the last data set to disk, then merge the
     // temporary index files if there are more than one.
     if !accumulated_index.is_empty() {
-        let file = write_index_to_tmp_file(accumulated_index, &mut tmp_dir)?;
+        let file = write_index_to_tmp_file(accumulated_index, &mut tmp_dir)
+            .map_err(FingertipsErrorKind::Io)?;
         merge.add_file(file)?;
     }
-    merge.finish()
+    merge.finish()?;
+
+    Ok(())
 }
 
 /// Start a thread that loads documents from the filesystem into memory.
@@ -82,14 +89,16 @@ fn run_single_threaded(documents: Vec<PathBuf>, output_dir: PathBuf) -> io::Resu
 /// exit and to get the `io::Error` value if anything goes wrong.
 fn start_file_reader_thread(
     documents: Vec<PathBuf>,
-) -> (Receiver<String>, JoinHandle<io::Result<()>>) {
+) -> (Receiver<String>, JoinHandle<FingertipsResult<()>>) {
     let (sender, receiver) = channel();
 
     let handle = spawn(move || {
         for filename in documents {
-            let mut f = File::open(filename)?;
+            let mut f = File::open(filename).map_err(FingertipsErrorKind::Io)?;
             let mut text = String::new();
-            _ = f.read_to_string(&mut text)?;
+            _ = f
+                .read_to_string(&mut text)
+                .map_err(FingertipsErrorKind::Io)?;
 
             if sender.send(text).is_err() {
                 break;
@@ -110,6 +119,7 @@ fn start_file_reader_thread(
 /// receiver, the sequence of in-memory indexes; and a `JoinHandle` that can be
 /// used to wait for this thread to exit. This stage of the pipeline is
 /// infallible (it performs no I/O, so there are no possible errors).
+#[allow(clippy::expect_used)]
 fn start_file_indexing_thread(
     texts: Receiver<String>,
 ) -> (Receiver<InMemoryIndex>, JoinHandle<()>) {
@@ -117,7 +127,8 @@ fn start_file_indexing_thread(
 
     let handle = spawn(move || {
         for (doc_id, text) in texts.into_iter().enumerate() {
-            let index = InMemoryIndex::from_single_document(doc_id, text);
+            let index = InMemoryIndex::from_single_document(doc_id, text)
+                .expect("InMemoryIndex::from_single_document should not fail in this context");
             if sender.send(index).is_err() {
                 break;
             }
@@ -175,13 +186,14 @@ fn start_in_memory_merge_thread(
 fn start_index_writer_thread(
     big_indexes: Receiver<InMemoryIndex>,
     output_dir: &Path,
-) -> (Receiver<PathBuf>, JoinHandle<io::Result<()>>) {
+) -> (Receiver<PathBuf>, JoinHandle<FingertipsResult<()>>) {
     let (sender, receiver) = channel();
 
     let mut tmp_dir = TmpDir::new(output_dir);
     let handle = spawn(move || {
         for index in big_indexes {
-            let file = write_index_to_tmp_file(index, &mut tmp_dir)?;
+            let file =
+                write_index_to_tmp_file(index, &mut tmp_dir).map_err(FingertipsErrorKind::Io)?;
             if sender.send(file).is_err() {
                 break;
             }
@@ -194,12 +206,14 @@ fn start_index_writer_thread(
 
 /// Given a sequence of filenames of index data files, merge all the files
 /// into a single index data file.
-fn merge_index_files(files: Receiver<PathBuf>, output_dir: &Path) -> io::Result<()> {
+fn merge_index_files(files: Receiver<PathBuf>, output_dir: &Path) -> FingertipsResult<()> {
     let mut merge = FileMerge::new(output_dir);
     for file in files {
         merge.add_file(file)?;
     }
-    merge.finish()
+    merge.finish()?;
+
+    Ok(())
 }
 
 /// Create an inverted index for the given list of `documents`,
@@ -208,7 +222,8 @@ fn merge_index_files(files: Receiver<PathBuf>, output_dir: &Path) -> io::Result<
 /// On success this does exactly the same thing as `run_single_threaded`, but
 /// faster since it uses multiple CPUs and keeps them busy while I/O is
 /// happening.
-fn run_pipeline(documents: Vec<PathBuf>, output_dir: PathBuf) -> io::Result<()> {
+#[allow(clippy::expect_used)]
+fn run_pipeline(documents: Vec<PathBuf>, output_dir: PathBuf) -> FingertipsResult<()> {
     // Launch all five stages of the pipeline.
     let (texts, h1) = start_file_reader_thread(documents);
     let (pints, h2) = start_file_indexing_thread(texts);
@@ -217,16 +232,17 @@ fn run_pipeline(documents: Vec<PathBuf>, output_dir: PathBuf) -> io::Result<()> 
     let result = merge_index_files(files, &output_dir);
 
     // Wait for threads to finish, holding on to any errors that they encounter.
-    let r1 = h1.join().unwrap();
-    h2.join().unwrap();
-    h3.join().unwrap();
-    let r4 = h4.join().unwrap();
+    let r1 = h1.join().expect("File reader thread panicked!");
+    h2.join().expect("In-memory indexing thread panicked!");
+    h3.join().expect("In-memory indexing thread panicked!");
+    let r4 = h4.join().expect("Index writer thread panicked!");
 
     // Return the first error encountered, if any.
     // (As it happens, h2 and h3 can't fail: those threads
     // are pure in-memory data processing.)
     r1?;
     r4?;
+
     result
 }
 
@@ -256,9 +272,9 @@ fn expand_filename_arguments(args: Vec<String>) -> io::Result<Vec<PathBuf>> {
 }
 
 /// Generate an index for a bunch of text files.
-pub fn run(filenames: Vec<String>, single_threaded: bool) -> io::Result<()> {
+pub fn run(filenames: Vec<String>, single_threaded: bool) -> FingertipsResult<()> {
     let output_dir = PathBuf::from(".");
-    let documents = expand_filename_arguments(filenames)?;
+    let documents = expand_filename_arguments(filenames).map_err(FingertipsErrorKind::Io)?;
 
     if single_threaded {
         run_single_threaded(documents, output_dir)

@@ -1,7 +1,10 @@
 //! Reading index files linearly from disk, a capability needed for merging
 //! index files.
 
-use crate::write::IndexFileWriter;
+use crate::{
+    error::{FingertipsErrorKind, FingertipsResult},
+    write::IndexFileWriter,
+};
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::fs::{self, File};
 use std::io::prelude::*;
@@ -148,24 +151,27 @@ impl IndexFileReader {
 
     /// Copy the current entry to the specified output stream, then read the
     /// header for the next entry.
-    pub fn move_entry_to(&mut self, out: &mut IndexFileWriter) -> io::Result<()> {
+    pub fn move_entry_to(&mut self, out: &mut IndexFileWriter) -> FingertipsResult<()> {
         // This block limits the scope of borrowing `self.next` (for `e`),
         // because after this block is over we'll want to assign to `self.next`.
         {
-            let e = self.next.as_ref().expect("no entry to move");
+            let e = self
+                .next
+                .as_ref()
+                .ok_or(FingertipsErrorKind::NoEntryToMove)?;
             if e.nbytes > usize::max_value() as u64 {
                 // This can only happen on 32-bit platforms.
-                return Err(io::Error::new(
-                    io::ErrorKind::Other,
-                    "computer not big enough to hold index entry",
-                ));
+                return Err(FingertipsErrorKind::PlatformLimitExceeded.into());
             }
             let mut buf = vec![0; e.nbytes as usize];
-            self.main.read_exact(&mut buf)?;
-            out.write_main(&buf)?;
+            self.main
+                .read_exact(&mut buf)
+                .map_err(FingertipsErrorKind::Io)?;
+            out.write_main(&buf).map_err(FingertipsErrorKind::Io)?;
         }
 
-        self.next = Self::read_entry(&mut self.contents)?;
+        self.next = Self::read_entry(&mut self.contents).map_err(FingertipsErrorKind::Io)?;
+
         Ok(())
     }
 }

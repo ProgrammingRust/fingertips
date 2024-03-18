@@ -7,6 +7,8 @@
 use byteorder::{LittleEndian, WriteBytesExt};
 use std::collections::HashMap;
 
+use crate::error::{FingertipsErrorKind, FingertipsResult};
+
 /// Break a string into words.
 fn tokenize(text: &str) -> Vec<&str> {
     text.split(|ch: char| !ch.is_alphanumeric())
@@ -55,19 +57,30 @@ impl InMemoryIndex {
     /// Index a single document.
     ///
     /// The resulting index contains exactly one `Hit` per term.
-    pub fn from_single_document(document_id: usize, text: String) -> Self {
+    pub fn from_single_document(document_id: usize, text: String) -> FingertipsResult<Self> {
         let document_id = document_id as u32;
         let mut index = Self::new();
 
         let text = text.to_lowercase();
         let tokens = tokenize(&text);
+
+        let hits_list = {
+            let mut hits = Vec::with_capacity(4 + 4);
+            hits.write_u32::<LittleEndian>(document_id)
+                .map_err(FingertipsErrorKind::Io)?;
+
+            vec![hits]
+        };
+
         for (i, token) in tokens.iter().enumerate() {
-            let hits = index.map.entry((*token).to_string()).or_insert_with(|| {
-                let mut hits = Vec::with_capacity(4 + 4);
-                hits.write_u32::<LittleEndian>(document_id).unwrap();
-                vec![hits]
-            });
-            hits[0].write_u32::<LittleEndian>(i as u32).unwrap();
+            let hits = index
+                .map
+                .entry((*token).to_string())
+                .or_insert(hits_list.clone());
+            hits[0]
+                .write_u32::<LittleEndian>(i as u32)
+                .map_err(FingertipsErrorKind::Io)?;
+
             index.word_count += 1;
         }
 
@@ -80,7 +93,7 @@ impl InMemoryIndex {
             );
         }
 
-        index
+        Ok(index)
     }
 
     /// Add all search hits from `other` to this index.

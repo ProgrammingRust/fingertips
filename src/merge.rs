@@ -9,9 +9,9 @@ use std::{
     io::{self, BufWriter},
 };
 
-use crate::read::IndexFileReader;
-use crate::tmp::TmpDir;
 use crate::write::IndexFileWriter;
+use crate::{error::FingertipsErrorKind, tmp::TmpDir};
+use crate::{error::FingertipsResult, read::IndexFileReader};
 
 pub(crate) mod constants {
     // How many files to merge at a time, at most.
@@ -44,7 +44,7 @@ impl FileMerge {
         }
     }
 
-    pub fn add_file(&mut self, mut file: PathBuf) -> io::Result<()> {
+    pub fn add_file(&mut self, mut file: PathBuf) -> FingertipsResult<()> {
         let mut level = 0;
         loop {
             if level == self.stacks.len() {
@@ -54,7 +54,7 @@ impl FileMerge {
             if self.stacks[level].len() < constants::NSTREAMS {
                 break;
             }
-            let (filename, out) = self.tmp_dir.create()?;
+            let (filename, out) = self.tmp_dir.create().map_err(FingertipsErrorKind::Io)?;
             let mut to_merge = vec![];
             mem::swap(&mut self.stacks[level], &mut to_merge);
             merge_streams(to_merge, out)?;
@@ -64,7 +64,7 @@ impl FileMerge {
         Ok(())
     }
 
-    pub fn finish(mut self) -> io::Result<()> {
+    pub fn finish(mut self) -> FingertipsResult<()> {
         let mut tmp = Vec::with_capacity(constants::NSTREAMS);
         for stack in self.stacks {
             for file in stack.into_iter().rev() {
@@ -79,25 +79,28 @@ impl FileMerge {
             merge_reversed(&mut tmp, &mut self.tmp_dir)?;
         }
         assert!(tmp.len() <= 1);
-        match tmp.pop() {
-            Some(last_file) => {
-                fs::rename(last_file, self.output_dir.join(constants::MERGED_FILENAME))
-            }
-            None => Err(io::Error::new(
+
+        if let Some(last_file) = tmp.pop() {
+            fs::rename(last_file, self.output_dir.join(constants::MERGED_FILENAME))
+                .map_err(|err| FingertipsErrorKind::Io(err).into())
+        } else {
+            Err(FingertipsErrorKind::from(io::Error::new(
                 io::ErrorKind::Other,
                 "no documents were parsed or none contained any words",
-            )),
+            ))
+            .into())
         }
     }
 }
 
-fn merge_streams(files: Vec<PathBuf>, out: BufWriter<File>) -> io::Result<()> {
+fn merge_streams(files: Vec<PathBuf>, out: BufWriter<File>) -> FingertipsResult<()> {
     let mut streams: Vec<IndexFileReader> = files
         .into_iter()
         .map(IndexFileReader::open_and_delete)
-        .collect::<io::Result<_>>()?;
+        .map(|result| result.map_err(|err| FingertipsErrorKind::Io(err).into()))
+        .collect::<FingertipsResult<_>>()?;
 
-    let mut output = IndexFileWriter::new(out)?;
+    let mut output = IndexFileWriter::new(out).map_err(FingertipsErrorKind::Io)?;
 
     let mut point: u64 = 0;
     let mut count = streams.iter().filter(|s| s.peek().is_some()).count();
@@ -109,18 +112,20 @@ fn merge_streams(files: Vec<PathBuf>, out: BufWriter<File>) -> io::Result<()> {
             match s.peek() {
                 None => {}
                 Some(entry) => {
-                    if term.is_none() || entry.term < *term.as_ref().unwrap() {
+                    if term.is_none()
+                        || entry.term < *term.as_ref().ok_or(FingertipsErrorKind::TermEmpty)?
+                    {
                         term = Some(entry.term.clone()); // XXX LAME clone
                         nbytes = entry.nbytes;
                         df = entry.df;
-                    } else if entry.term == *term.as_ref().unwrap() {
+                    } else if entry.term == *term.as_ref().ok_or(FingertipsErrorKind::TermEmpty)? {
                         nbytes += entry.nbytes;
                         df += entry.df;
                     }
                 }
             }
         }
-        let term = term.expect("bug in algorithm!");
+        let term = term.ok_or(FingertipsErrorKind::AlgorithmError)?;
 
         for s in &mut streams {
             if s.is_at(&term) {
@@ -130,17 +135,21 @@ fn merge_streams(files: Vec<PathBuf>, out: BufWriter<File>) -> io::Result<()> {
                 }
             }
         }
-        output.write_contents_entry(term, df, point, nbytes);
+        output
+            .write_contents_entry(term, df, point, nbytes)
+            .map_err(FingertipsErrorKind::Io)?;
+
         point += nbytes;
     }
 
     assert!(streams.iter().all(|s| s.peek().is_none()));
-    output.finish()
+
+    Ok(output.finish().map_err(FingertipsErrorKind::Io)?)
 }
 
-fn merge_reversed(filenames: &mut Vec<PathBuf>, tmp_dir: &mut TmpDir) -> io::Result<()> {
+fn merge_reversed(filenames: &mut Vec<PathBuf>, tmp_dir: &mut TmpDir) -> FingertipsResult<()> {
     filenames.reverse();
-    let (merged_filename, out) = tmp_dir.create()?;
+    let (merged_filename, out) = tmp_dir.create().map_err(FingertipsErrorKind::Io)?;
     let mut to_merge = Vec::with_capacity(constants::NSTREAMS);
     mem::swap(filenames, &mut to_merge);
     merge_streams(to_merge, out)?;

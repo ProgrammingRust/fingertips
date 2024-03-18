@@ -44,15 +44,22 @@ impl IndexFileWriter {
         Ok(())
     }
 
-    pub fn write_contents_entry(&mut self, term: String, df: u32, offset: u64, nbytes: u64) {
-        self.contents_buf.write_u64::<LittleEndian>(offset).unwrap();
-        self.contents_buf.write_u64::<LittleEndian>(nbytes).unwrap();
-        self.contents_buf.write_u32::<LittleEndian>(df).unwrap();
+    pub fn write_contents_entry(
+        &mut self,
+        term: String,
+        df: u32,
+        offset: u64,
+        nbytes: u64,
+    ) -> io::Result<()> {
+        self.contents_buf.write_u64::<LittleEndian>(offset)?;
+        self.contents_buf.write_u64::<LittleEndian>(nbytes)?;
+        self.contents_buf.write_u32::<LittleEndian>(df)?;
         let bytes = term.bytes();
         self.contents_buf
-            .write_u32::<LittleEndian>(bytes.len() as u32)
-            .unwrap();
+            .write_u32::<LittleEndian>(bytes.len() as u32)?;
         self.contents_buf.extend(bytes);
+
+        Ok(())
     }
 
     /// Finish writing the index file and close it.
@@ -86,10 +93,11 @@ pub fn write_index_to_tmp_file(index: InMemoryIndex, tmp_dir: &mut TmpDir) -> io
             writer.write_main(&buffer)?;
         }
         let stop = writer.offset;
-        writer.write_contents_entry(term, df, start, stop - start);
+        writer.write_contents_entry(term, df, start, stop - start)?;
     }
 
     writer.finish()?;
     println!("wrote file {filename:?}");
+
     Ok(filename)
 }
