@@ -7,3 +7,16 @@ edition = "2021"
 [dependencies]
 argparse = "0.2.1"
 byteorder = "1.5.0"
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+rust_2018_idioms = "warn"
+trivial_casts = "warn"
+unused_lifetimes = "warn"
+unused_qualifications = "warn"
+bad_style = "warn"
+dead_code = "warn"
+
+[lints.clippy]
+all = "warn"
