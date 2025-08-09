@@ -296,8 +296,7 @@ fn main() {
         ap.parse_args_or_exit();
     }
 
-    match run(filenames, single_threaded) {
-        Ok(()) => {}
-        Err(err) => println!("error: {}", err)
+    if let Err(err) = run(filenames, single_threaded) {
+        eprintln!("error: {err}");
     }
 }
