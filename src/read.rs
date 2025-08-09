@@ -68,7 +68,10 @@ impl IndexFileReader {
 
         // Read the file header.
         let contents_offset = main_raw.read_u64::<LittleEndian>()?;
-        println!("opened {}, table of contents starts at {}", filename.display(), contents_offset);
+        println!(
+            "opened {}, table of contents starts at {contents_offset}",
+            filename.display()
+        );
 
         // Open again so we have two read heads;
         // move the contents read head to its starting position.

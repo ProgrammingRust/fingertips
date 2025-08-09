@@ -56,7 +56,7 @@ impl IndexFileWriter {
     pub fn finish(mut self) -> io::Result<()> {
         let contents_start = self.offset;
         self.writer.write_all(&self.contents_buf)?;
-        println!("{} bytes main, {} bytes total", contents_start, contents_start + self.contents_buf.len() as u64);
+        println!("{contents_start} bytes main, {} bytes total", contents_start + self.contents_buf.len() as u64);
         self.writer.seek(SeekFrom::Start(0))?;
         self.writer.write_u64::<LittleEndian>(contents_start)?;
         Ok(())
@@ -83,6 +83,6 @@ pub fn write_index_to_tmp_file(index: InMemoryIndex, tmp_dir: &mut TmpDir) -> io
     }
 
     writer.finish()?;
-    println!("wrote file {:?}", filename);
+    println!("wrote file {filename:?}");
     Ok(filename)
 }

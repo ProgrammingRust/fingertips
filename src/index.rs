@@ -77,7 +77,7 @@ impl InMemoryIndex {
         }
 
         if document_id % 100 == 0 {
-            println!("indexed document {}, {} bytes, {} words", document_id, text.len(), index.word_count);
+            println!("indexed document {document_id}, {} bytes, {} words", text.len(), index.word_count);
         }
 
         index
