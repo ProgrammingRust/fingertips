@@ -16,13 +16,13 @@ pub struct FileMerge {
 // How many files to merge at a time, at most.
 const NSTREAMS: usize = 8;
 
-const MERGED_FILENAME: &'static str = "index.dat";
+const MERGED_FILENAME: &str = "index.dat";
 
 impl FileMerge {
     pub fn new(output_dir: &Path) -> FileMerge {
         FileMerge {
             output_dir: output_dir.to_owned(),
-            tmp_dir: TmpDir::new(output_dir.to_owned()),
+            tmp_dir: TmpDir::new(output_dir),
             stacks: vec![],
         }
     }
@@ -113,8 +113,8 @@ fn merge_streams(files: Vec<PathBuf>, out: BufWriter<File>)
                 }
             }
         }
-        output.write_contents_entry(term, df, point, nbytes as u64);
-        point += nbytes as u64;
+        output.write_contents_entry(term, df, point, nbytes);
+        point += nbytes;
     }
 
     assert!(streams.iter().all(|s| s.peek().is_none()));
