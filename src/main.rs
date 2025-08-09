@@ -1,17 +1,17 @@
-/// `fingertips` creates an inverted index for a set of text files.
-///
-/// Most of the actual work is done by the modules `index`, `read`, `write`,
-/// and `merge`.  In this file, `main.rs`, we put the pieces together in two
-/// different ways.
-///
-/// *   `run_single_threaded` simply does everything in one thread, in
-///     the most straightforward possible way.
-///
-/// *   Then, we break the work into a five-stage pipeline so that we can run
-///     it on multiple CPUs. `run_pipeline` puts the five stages together.
-///
-/// The `main` function at the end handles command-line arguments. It calls one
-/// of the two functions above to do the work.
+//! `fingertips` creates an inverted index for a set of text files.
+//!
+//! Most of the actual work is done by the modules `index`, `read`, `write`,
+//! and `merge`.  In this file, `main.rs`, we put the pieces together in two
+//! different ways.
+//!
+//! *   `run_single_threaded` simply does everything in one thread, in
+//!     the most straightforward possible way.
+//!
+//! *   Then, we break the work into a five-stage pipeline so that we can run
+//!     it on multiple CPUs. `run_pipeline` puts the five stages together.
+//!
+//! The `main` function at the end handles command-line arguments. It calls one
+//! of the two functions above to do the work.
 
 mod index;
 mod read;
