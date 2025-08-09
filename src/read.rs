@@ -50,6 +50,7 @@ pub struct Entry {
     pub df: u32,
 
     /// Offset of the index data for this term from the beginning of the file, in bytes.
+    #[expect(dead_code)]
     pub offset: u64,
 
     /// Length of the index data for this term, in bytes.
