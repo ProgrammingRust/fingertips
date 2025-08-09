@@ -3,8 +3,8 @@ use std::io::{self, BufWriter};
 use std::mem;
 use std::path::{Path, PathBuf};
 
-use crate::tmp::TmpDir;
 use crate::read::IndexFileReader;
+use crate::tmp::TmpDir;
 use crate::write::IndexFileWriter;
 
 pub struct FileMerge {
@@ -63,22 +63,19 @@ impl FileMerge {
         }
         assert!(tmp.len() <= 1);
         match tmp.pop() {
-            Some(last_file) =>
-                fs::rename(last_file, self.output_dir.join(MERGED_FILENAME)),
-            None =>
-                Err(io::Error::new(io::ErrorKind::Other,
-                                   "no documents were parsed or none contained any words"))
+            Some(last_file) => fs::rename(last_file, self.output_dir.join(MERGED_FILENAME)),
+            None => Err(io::Error::other(
+                "no documents were parsed or none contained any words",
+            )),
         }
     }
 }
 
-fn merge_streams(files: Vec<PathBuf>, out: BufWriter<File>)
-    -> io::Result<()>
-{
-    let mut streams: Vec<IndexFileReader> =
-        files.into_iter()
-            .map(IndexFileReader::open_and_delete)
-            .collect::<io::Result<_>>()?;
+fn merge_streams(files: Vec<PathBuf>, out: BufWriter<File>) -> io::Result<()> {
+    let mut streams: Vec<IndexFileReader> = files
+        .into_iter()
+        .map(IndexFileReader::open_and_delete)
+        .collect::<io::Result<_>>()?;
 
     let mut output = IndexFileWriter::new(out)?;
 

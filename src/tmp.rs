@@ -22,9 +22,9 @@ impl TmpDir {
             let filename = self.dir.join(PathBuf::from(format!("tmp{:08x}.dat", self.n)));
             self.n += 1;
             match fs::OpenOptions::new()
-                  .write(true)
-                  .create_new(true)
-                  .open(&filename)
+                .write(true)
+                .create_new(true)
+                .open(&filename)
             {
                 Ok(f) =>
                     return Ok((filename, BufWriter::new(f))),

@@ -5,7 +5,9 @@ use std::fs::{self, File};
 use std::io::prelude::*;
 use std::io::{self, BufReader, SeekFrom};
 use std::path::Path;
+
 use byteorder::{LittleEndian, ReadBytesExt};
+
 use crate::write::IndexFileWriter;
 
 /// A `IndexFileReader` does a single linear pass over an index file from
@@ -84,7 +86,7 @@ impl IndexFileReader {
         // We always read ahead one entry, so load the first entry right away.
         let first = IndexFileReader::read_entry(&mut contents)?;
 
-        fs::remove_file(filename)?;  // YOLO
+        fs::remove_file(filename)?; // YOLO
 
         Ok(IndexFileReader {
             main,
@@ -101,12 +103,13 @@ impl IndexFileReader {
         // that's considered a success, with no entry read.
         let offset = match f.read_u64::<LittleEndian>() {
             Ok(value) => value,
-            Err(err) =>
+            Err(err) => {
                 if err.kind() == io::ErrorKind::UnexpectedEof {
-                    return Ok(None)
+                    return Ok(None);
                 } else {
-                    return Err(err)
+                    return Err(err);
                 }
+            }
         };
 
         let nbytes = f.read_u64::<LittleEndian>()?;
@@ -131,7 +134,9 @@ impl IndexFileReader {
     /// (Since we always read ahead one entry, this method can't fail.)
     ///
     /// Returns `None` if we've reached the end of the file.
-    pub fn peek(&self) -> Option<&Entry> { self.next.as_ref() }
+    pub fn peek(&self) -> Option<&Entry> {
+        self.next.as_ref()
+    }
 
     /// True if the next entry is for the given term.
     pub fn is_at(&self, term: &str) -> bool {
