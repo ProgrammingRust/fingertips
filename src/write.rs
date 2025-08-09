@@ -23,7 +23,7 @@ pub struct IndexFileWriter {
     writer: BufWriter<File>,
 
     /// The table of contents for this file.
-    contents_buf: Vec<u8>
+    contents_buf: Vec<u8>,
 }
 
 impl IndexFileWriter {
@@ -33,7 +33,7 @@ impl IndexFileWriter {
         Ok(IndexFileWriter {
             offset: HEADER_SIZE,
             writer: f,
-            contents_buf: vec![]
+            contents_buf: vec![],
         })
     }
 

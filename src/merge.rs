@@ -10,7 +10,7 @@ use crate::write::IndexFileWriter;
 pub struct FileMerge {
     output_dir: PathBuf,
     tmp_dir: TmpDir,
-    stacks: Vec<Vec<PathBuf>>
+    stacks: Vec<Vec<PathBuf>>,
 }
 
 // How many files to merge at a time, at most.
@@ -23,7 +23,7 @@ impl FileMerge {
         FileMerge {
             output_dir: output_dir.to_owned(),
             tmp_dir: TmpDir::new(output_dir.to_owned()),
-            stacks: vec![]
+            stacks: vec![],
         }
     }
 

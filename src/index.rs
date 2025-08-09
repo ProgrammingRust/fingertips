@@ -34,7 +34,7 @@ pub struct InMemoryIndex {
     /// document id in increasing order. This is handy for some algorithms you
     /// might want to run on the index, so we preserve this property wherever
     /// possible.
-    pub map: HashMap<String, Vec<Hit>>
+    pub map: HashMap<String, Vec<Hit>>,
 }
 
 /// A `Hit` indicates that a particular document contains some term, how many
@@ -50,7 +50,7 @@ impl InMemoryIndex {
     pub fn new() -> InMemoryIndex {
         InMemoryIndex {
             word_count: 0,
-            map: HashMap::new()
+            map: HashMap::new(),
         }
     }
 

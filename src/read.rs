@@ -30,7 +30,7 @@ pub struct IndexFileReader {
     /// The next entry in the table of contents, if any; or `None` if we've
     /// reached the end of the table. `IndexFileReader` always reads ahead one
     /// entry in the contents and stores it here.
-    next: Option<Entry>
+    next: Option<Entry>,
 }
 
 /// An entry in the table of contents of an index file.
@@ -51,7 +51,7 @@ pub struct Entry {
     pub offset: u64,
 
     /// Length of the index data for this term, in bytes.
-    pub nbytes: u64
+    pub nbytes: u64,
 }
 
 impl IndexFileReader {
@@ -84,9 +84,9 @@ impl IndexFileReader {
         fs::remove_file(filename)?;  // YOLO
 
         Ok(IndexFileReader {
-            main: main,
-            contents: contents,
-            next: first
+            main,
+            contents,
+            next: first,
         })
     }
 
@@ -118,10 +118,10 @@ impl IndexFileReader {
         };
 
         Ok(Some(Entry {
-            term: term,
-            df: df,
-            offset: offset,
-            nbytes: nbytes
+            term,
+            df,
+            offset,
+            nbytes,
         }))
     }
 
@@ -135,7 +135,7 @@ impl IndexFileReader {
     pub fn is_at(&self, term: &str) -> bool {
         match self.next {
             Some(ref e) => e.term == term,
-            None => false
+            None => false,
         }
     }
 

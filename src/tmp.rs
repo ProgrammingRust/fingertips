@@ -5,14 +5,14 @@ use std::path::{Path, PathBuf};
 #[derive(Clone)]
 pub struct TmpDir {
     dir: PathBuf,
-    n: usize
+    n: usize,
 }
 
 impl TmpDir {
     pub fn new<P: AsRef<Path>>(dir: P) -> TmpDir {
         TmpDir {
             dir: dir.as_ref().to_owned(),
-            n: 1
+            n: 1,
         }
     }
 
