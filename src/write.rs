@@ -10,11 +10,7 @@ use byteorder::{LittleEndian, WriteBytesExt};
 ///
 /// The first 8 bytes of the index file contain the offset of the table of
 /// contents, in bytes. Then come the main entries, all stored back-to-back
-/// with no particular metadata.
-///
-
-/// An index file has two parts. The main part of the file is a sequence of
-/// entries, stored back-to-back; the
+/// with no particular metadata. Lastly there's the table of contents.
 pub struct IndexFileWriter {
     /// The number of bytes written so far.
     offset: u64,
