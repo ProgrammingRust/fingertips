@@ -112,12 +112,11 @@ impl IndexFileReader {
         let nbytes = f.read_u64::<LittleEndian>()?;
         let df = f.read_u32::<LittleEndian>()?;
         let term_len = f.read_u32::<LittleEndian>()? as usize;
-        let mut bytes = Vec::with_capacity(term_len);
-        bytes.resize(term_len, 0);
+        let mut bytes = vec![0; term_len];
         f.read_exact(&mut bytes)?;
         let term = match String::from_utf8(bytes) {
             Ok(s) => s,
-            Err(_) => return Err(io::Error::new(io::ErrorKind::Other, "unicode fail"))
+            Err(_) => return Err(io::Error::other("unicode fail")),
         };
 
         Ok(Some(Entry {
@@ -149,13 +148,13 @@ impl IndexFileReader {
         // because after this block is over we'll want to assign to `self.next`.
         {
             let e = self.next.as_ref().expect("no entry to move");
-            if e.nbytes > usize::max_value() as u64 {
+            if e.nbytes > usize::MAX as u64 {
                 // This can only happen on 32-bit platforms.
-                return Err(io::Error::new(io::ErrorKind::Other,
-                                          "computer not big enough to hold index entry"));
+                return Err(io::Error::other(
+                    "computer not big enough to hold index entry",
+                ));
             }
-            let mut buf = Vec::with_capacity(e.nbytes as usize);
-            buf.resize(e.nbytes as usize, 0);
+            let mut buf = vec![0; e.nbytes as usize];
             self.main.read_exact(&mut buf)?;
             out.write_main(&buf)?;
         }

@@ -91,8 +91,8 @@ impl InMemoryIndex {
     pub fn merge(&mut self, other: InMemoryIndex) {
         for (term, hits) in other.map {
             self.map.entry(term)
-                .or_insert_with(|| vec![])
-                .extend(hits)
+                .or_default()
+                .extend(hits);
         }
         self.word_count += other.word_count;
     }

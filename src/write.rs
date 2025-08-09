@@ -70,7 +70,7 @@ pub fn write_index_to_tmp_file(index: InMemoryIndex, tmp_dir: &mut TmpDir) -> io
     // The merge algorithm requires the entries within each file to be sorted by term.
     // Sort before writing anything.
     let mut index_as_vec: Vec<_> = index.map.into_iter().collect();
-    index_as_vec.sort_by(|&(ref a, _), &(ref b, _)| a.cmp(b));
+    index_as_vec.sort_by(|(a, _), (b, _)| a.cmp(b));
 
     for (term, hits) in index_as_vec {
         let df = hits.len() as u32;
