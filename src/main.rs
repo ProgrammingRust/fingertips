@@ -80,7 +80,7 @@ fn run_single_threaded(documents: Vec<PathBuf>, output_dir: PathBuf) -> io::Resu
 fn start_file_reader_thread(
     documents: Vec<PathBuf>,
 ) -> (mpsc::Receiver<String>, thread::JoinHandle<io::Result<()>>) {
-    let (sender, receiver) = mpsc::channel();
+    let (sender, receiver) = mpsc::sync_channel(32);
 
     let handle = thread::spawn(move || {
         for filename in documents {
@@ -108,7 +108,7 @@ fn start_file_reader_thread(
 fn start_file_indexing_thread(
     texts: mpsc::Receiver<String>,
 ) -> (mpsc::Receiver<InMemoryIndex>, thread::JoinHandle<()>) {
-    let (sender, receiver) = mpsc::channel();
+    let (sender, receiver) = mpsc::sync_channel(32);
 
     let handle = thread::spawn(move || {
         for (doc_id, text) in texts.into_iter().enumerate() {
@@ -139,7 +139,7 @@ fn start_in_memory_merge_thread(
     file_indexes: mpsc::Receiver<InMemoryIndex>,
 ) -> (mpsc::Receiver<InMemoryIndex>, thread::JoinHandle<()>)
 {
-    let (sender, receiver) = mpsc::channel();
+    let (sender, receiver) = mpsc::sync_channel(32);
 
     let handle = thread::spawn(move || {
         let mut accumulated_index = InMemoryIndex::new();
@@ -173,7 +173,7 @@ fn start_index_writer_thread(
     output_dir: &Path,
 ) -> (mpsc::Receiver<PathBuf>, thread::JoinHandle<io::Result<()>>)
 {
-    let (sender, receiver) = mpsc::channel();
+    let (sender, receiver) = mpsc::sync_channel(32);
 
     let mut tmp_dir = TmpDir::new(output_dir);
     let handle = thread::spawn(move || {
