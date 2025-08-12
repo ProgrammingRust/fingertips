@@ -21,6 +21,7 @@ fn tokenize(text: &str) -> Vec<&str> {
 /// answer simple search queries. And you can use the `read`, `write`, and
 /// `merge` modules to save an in-memory index to disk and merge it with other
 /// indices, producing a large index.
+#[derive(Default)]
 pub struct InMemoryIndex {
     /// The total number of words in the indexed documents.
     pub word_count: usize,
@@ -48,10 +49,7 @@ pub type Hit = Vec<u8>;
 impl InMemoryIndex {
     /// Create a new, empty index.
     pub fn new() -> InMemoryIndex {
-        InMemoryIndex {
-            word_count: 0,
-            map: HashMap::new()
-        }
+        InMemoryIndex::default()
     }
 
     /// Index a single document.
