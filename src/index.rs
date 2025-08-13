@@ -35,7 +35,7 @@ pub struct InMemoryIndex {
     /// document id in increasing order. This is handy for some algorithms you
     /// might want to run on the index, so we preserve this property wherever
     /// possible.
-    pub map: HashMap<String, Vec<Hit>>
+    pub map: HashMap<String, Vec<Hit>>,
 }
 
 /// A `Hit` indicates that a particular document contains some term, how many
@@ -75,7 +75,7 @@ impl InMemoryIndex {
         }
 
         if document_id % 100 == 0 {
-            println!("indexed document {}, {} bytes, {} words", document_id, text.len(), index.word_count);
+            println!("indexed document {document_id}, {} bytes, {} words", text.len(), index.word_count);
         }
 
         index
@@ -89,8 +89,8 @@ impl InMemoryIndex {
     pub fn merge(&mut self, other: InMemoryIndex) {
         for (term, hits) in other.map {
             self.map.entry(term)
-                .or_insert_with(|| vec![])
-                .extend(hits)
+                .or_default()
+                .extend(hits);
         }
         self.word_count += other.word_count;
     }

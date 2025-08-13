@@ -10,11 +10,7 @@ use byteorder::{LittleEndian, WriteBytesExt};
 ///
 /// The first 8 bytes of the index file contain the offset of the table of
 /// contents, in bytes. Then come the main entries, all stored back-to-back
-/// with no particular metadata.
-///
-
-/// An index file has two parts. The main part of the file is a sequence of
-/// entries, stored back-to-back; the
+/// with no particular metadata. Lastly there's the table of contents.
 pub struct IndexFileWriter {
     /// The number of bytes written so far.
     offset: u64,
@@ -23,7 +19,7 @@ pub struct IndexFileWriter {
     writer: BufWriter<File>,
 
     /// The table of contents for this file.
-    contents_buf: Vec<u8>
+    contents_buf: Vec<u8>,
 }
 
 impl IndexFileWriter {
@@ -33,7 +29,7 @@ impl IndexFileWriter {
         Ok(IndexFileWriter {
             offset: HEADER_SIZE,
             writer: f,
-            contents_buf: vec![]
+            contents_buf: vec![],
         })
     }
 
@@ -56,7 +52,7 @@ impl IndexFileWriter {
     pub fn finish(mut self) -> io::Result<()> {
         let contents_start = self.offset;
         self.writer.write_all(&self.contents_buf)?;
-        println!("{} bytes main, {} bytes total", contents_start, contents_start + self.contents_buf.len() as u64);
+        println!("{contents_start} bytes main, {} bytes total", contents_start + self.contents_buf.len() as u64);
         self.writer.seek(SeekFrom::Start(0))?;
         self.writer.write_u64::<LittleEndian>(contents_start)?;
         Ok(())
@@ -70,7 +66,7 @@ pub fn write_index_to_tmp_file(index: InMemoryIndex, tmp_dir: &mut TmpDir) -> io
     // The merge algorithm requires the entries within each file to be sorted by term.
     // Sort before writing anything.
     let mut index_as_vec: Vec<_> = index.map.into_iter().collect();
-    index_as_vec.sort_by(|&(ref a, _), &(ref b, _)| a.cmp(b));
+    index_as_vec.sort_by(|(a, _), (b, _)| a.cmp(b));
 
     for (term, hits) in index_as_vec {
         let df = hits.len() as u32;
@@ -83,6 +79,6 @@ pub fn write_index_to_tmp_file(index: InMemoryIndex, tmp_dir: &mut TmpDir) -> io
     }
 
     writer.finish()?;
-    println!("wrote file {:?}", filename);
+    println!("wrote file {filename:?}");
     Ok(filename)
 }
